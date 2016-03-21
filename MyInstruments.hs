@@ -12,15 +12,18 @@ import Data.Function
 -- dfract :: SDBody args Signal
 -- dfract = do
 
+
 fract1 :: SDBody args Signal
 fract1 = do
   lmy <- linexp (0, 1, 100, 440) my
 
-  sig1 <- fract 0.01
+  sig1 <- fract 0.001
     & linexp (-1, 1, 0.1, 1)
+    & \x -> lag2 (in_ x, secs_ 10)
 
   sig2 <- fract 0.01
     & linexp (-1, 1, 0.001, 0.01)
+    & \x -> lag2 (in_ x, secs_ 0)
 
   resonz(in_ $ whiteNoise, freq_ $ 1000 ~* sig1, bwr_ sig2)
 
@@ -41,7 +44,11 @@ fractShit = do
   f2 <- fract $ linexp (-1, 1, 0.01, 10) f1
 
   lmy <- linexp (-1, 1, 25, 16000) f2
-  resonz (in_ whiteNoise, freq_ lmy, bwr_ 0.0001)
+  resonz ( in_ brownNoise
+         , freq_ $ lmy
+           & \x -> lag2 (in_ x, secs_ $ uOp Abs $ sinOsc (freq_ 0.1))
+         , bwr_ 0.0001
+         )
 
 
 -- foo :: SDBody args Signal

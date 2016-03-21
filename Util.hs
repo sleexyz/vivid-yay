@@ -17,6 +17,9 @@ mx = mouseX (min_ 0, max_ 1)
 my :: SDBody args Signal
 my = mouseY (min_ 0, max_ 1)
 
+midiRatio :: ToSig i a => i -> SDBody a Signal
+midiRatio x = midiCPS x ~/ midiCPS  (0 :: Float)
+
 
 -- infixl 8 ~**
 -- (~**) :: (ToSig i0 args, ToSig i1 args)
@@ -77,3 +80,7 @@ makeFract numIterations baseFreq
 
 fract :: (ToSig input args) => input -> SDBody args Signal
 fract = makeFract 5
+
+infixl !!!
+(!!!) :: [a] -> Int -> [a]
+xs !!! n = join $ replicate n xs
