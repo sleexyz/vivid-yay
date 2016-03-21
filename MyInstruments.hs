@@ -1,6 +1,8 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+
 
 module MyInstruments where
 
@@ -39,24 +41,59 @@ fract2 = do
   resonz(in_ $ whiteNoise, freq_ $ 1000 ~* sig1, bwr_ 0.001)
 
 
-birdies :: SDBody args Signal
+-- birdies0 :: SDBody args Signal
+-- birdies0 = do
+--   let birdy = do
+--         f0 <- fract 0.01
+--         f1 <- fract $ f0 & linexp (-1, 1, 0.0001, 10)
+--         f2 <- fract $ f1 & linexp (-1, 1, 0.01, 10)
+
+--         let seq = (midiCPS . dc ) <$> ( (+) <$> [36, 60, 72]
+--                                         <*> [0, 2, 4, 7, 9, 11]
+--                                       )
+
+--         freq <- select (f2 & linlin (-1, 1, 0, length seq)) seq
+
+--         resonz ( in_ $ brownNoise ~* (f1  & linexp (-1, 1, 0.001, 1))
+--               , freq_ $ freq & laag 0.01
+--               , bwr_ $ 0.001
+--               )
+--   (mix =<< replicateM 5 birdy)
+--     & uOp TanH
+--     & \x -> freeVerb (in_ x, room_ 5)
+
+birdy :: SDBody args Signal
+birdy = do
+
+    f0 <- fract 0.01
+    f1 <- fract $ f0 & linexp (-1, 1, 0.0001, 10)
+    f2 <- fract $ f1 & linexp (-1, 1, 0.01, 10)
+
+    let seq = (midiCPS . dc ) <$> ( (+) <$> [36, 60, 72]
+                                    <*> [0, 2, 4, 7, 9, 11]
+                                  )
+
+    freq <- select (f2 & linlin (-1, 1, 0, length seq)) seq
+
+    resonz ( in_ $ brownNoise ~* (f1  & linexp (-1, 1, 0.001, 1))
+          , freq_ $ freq & laag 0.01
+          , bwr_ $ 0.001
+          )
+
+birdies :: SDBody args [Signal]
 birdies = do
-  let birdy = do
-        f0 <- fract 0.01
-        f1 <- fract $ f0 & linexp (-1, 1, 0.0001, 10)
-        f2 <- fract $ f1 & linexp (-1, 1, 0.01, 10)
-  
-        let seq = (midiCPS . dc ) <$> ( (+) <$> [36, 60, 72]
-                                        <*> [0, 2, 4, 7, 9, 11]
-                                      )
+  [left,right]  <- return $ (paan birdy $ fract 0.001)
+        <&> uOp TanH
+        -- <&> \x -> freeVerb (in_ x, room_ 5)
+  out 0 [left, right]
 
-        freq <- select (f2 & linlin (-1, 1, 0, length seq)) seq
 
-        resonz ( in_ $ brownNoise ~* (f1  & linexp (-1, 1, 0.001, 1))
-              , freq_ $ freq & laag 0.01
-              , bwr_ $ 0.001
-              )
-  uOp TanH $ mix =<< replicateM 5 birdy
+paan :: SDBody args Signal -> SDBody args Signal-> [SDBody args Signal]
+paan input pos = [ ((1 :: Float) ~- uOp Sqrt pos)  >>= (~*) input
+                 , uOp Sqrt pos  >>= (~*) input
+                 ]
+
+
 
 
 

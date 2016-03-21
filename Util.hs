@@ -89,3 +89,7 @@ laag :: ( ToSig input args
         , ToSig lag args
         ) => lag -> input -> SDBody args Signal
 laag lag input = lag2 (in_ input, secs_ lag)
+
+infixl 5 <&>
+(<&>) :: (Functor f) => f a -> (a -> b) -> f b
+(<&>) = flip fmap
