@@ -15,41 +15,39 @@ import Data.Function
 
 main = do
   cmdPeriod
-  -- replicateM_ 5 $ synth (toSD () M.coolFract) ()
-  -- replicateM_ 2 $ play $ M.fractShit
 
-  replicateM_ 5 $ play $ do
-    foo <- 10 ~* layer 1 M.fract1
-    foo
-      -- & \x -> latch (in_ x, trigger_ $ impulse (freq_ 22050))
-      & tanh'
-      & (~*0.2)
+  play $ M.birdies
 
-  play $ do
-    imp <- impulse (freq_ 10) ? KR
-    foo <- dseq (repeats_ inf)
-      =<< sequence ((midiCPS . (+38))
-                    <$> ([0, 2, 3, 5] !!! 16)
-                    ++ ((+ (-2)) <$> [0, 2, 3, 5] !!! 16)
-                   )
-      -- =<< sequence (fmap (midiCPS . (+38)) [-2, 2, 3, 5])
+  -- replicateM_ 5 $ play $ do
+  --   foo <- 10 ~* layer 1 M.fract1
+  --   -- lmy <- my & linexp (0, 1, 4000, 22050)
+  --   lmy <- lfSaw (freq_ 1) & linexp (0, 1, 8000, 16000)
+  --   -- lmx <- mx & linexp (0, 1, 100, 16000) & laag 0.01
+  --   lmx <- lfSaw  (freq_ 8) & linexp (-1, 1, 100, 16000)
+  --   foo
+  --     & \x -> latch (in_ x, trigger_ $ impulse (freq_ lmy))
+  --     & tanh'
+  --     & (~*0.01)
+  --     & \x -> lpf (in_ x, freq_ lmx)
 
-
-    dem <- demand (trig_ imp, reset_ 0, ugen_ foo)
-    freq <- dem
-      & \x -> lag2 (in_ x, secs_ 10)
-
-    (mix $ [ sinOsc (freq_ freq)])
-      & (~* 0.1)
-      & uOp TanH
 
   -- play $ do
-  --   foo <- layer 10 M.fract2
-  --   return foo
+  --   imp <- impulse (freq_ $ fract 0.01 & linexp (-1, 1, 1, 20) & laag 10) ? KR
+  --   base <- fract 0.01 & linlin (-1, 1, 40, 50)
 
-  --   -- lmy <- fract 0.01 & linexp (-1, 1, 4000, 24000)
-  --   lmy <- dc 4000
-  --   trigger <- lfPulse (freq_ lmy)
-  --   uOp TanH $ latch (in_ foo, trigger_ trigger)
+  --   seq <- sequence $ (midiCPS . (~+base))
+  --                   <$> [0, 2, 3, 5]
+
+  --   foo <- dseq (repeats_ inf) seq
+
+
+  --   dem <- demand (trig_ imp, reset_ 0, ugen_ foo)
+  --   freq <- dem
+  --     & laag 0.1
+
+  --   (mix $ [sinOsc (freq_ freq)])
+  --     & (~* 0.1)
+  --     & uOp TanH
+
 
   return ()

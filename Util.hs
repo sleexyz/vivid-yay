@@ -42,7 +42,7 @@ linlin :: ( ToSig a args
           , ToSig d args
           , ToSig x args
           ) => (a, b, c, d) -> x -> SDBody args Signal
-linlin (a, b, c, d) x = (d ~- c) ~* ((x ~- a) ~/ (b ~- a))
+linlin (a, b, c, d) x = c ~+ (d ~- c) ~* ((x ~- a) ~/ (b ~- a))
 
 -- TODO make better arrow syntax for vivid (SignalFunctions??)
 
@@ -84,3 +84,8 @@ fract = makeFract 5
 infixl !!!
 (!!!) :: [a] -> Int -> [a]
 xs !!! n = join $ replicate n xs
+
+laag :: ( ToSig input args
+        , ToSig lag args
+        ) => lag -> input -> SDBody args Signal
+laag lag input = lag2 (in_ input, secs_ lag)
