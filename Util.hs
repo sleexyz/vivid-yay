@@ -18,7 +18,7 @@ my :: SDBody args Signal
 my = mouseY (min_ 0, max_ 1)
 
 midiRatio :: ToSig i a => i -> SDBody a Signal
-midiRatio x = midiCPS x ~/ midiCPS  (0 :: Float)
+midiRatio x = midiCPS x ~/ midiCPS (dc 0)
 
 
 -- infixl 8 ~**
@@ -88,8 +88,27 @@ xs !!! n = join $ replicate n xs
 laag :: ( ToSig input args
         , ToSig lag args
         ) => lag -> input -> SDBody args Signal
-laag lag input = lag2 (in_ input, secs_ lag)
+laag l input = lag2 (in_ input, secs_ l)
+
+laaag :: ( ToSig input args
+        , ToSig lag args
+        ) => lag -> input -> SDBody args Signal
+laaag l input = lag (in_ input, secs_ l)
 
 infixl 5 <&>
 (<&>) :: (Functor f) => f a -> (a -> b) -> f b
 (<&>) = flip fmap
+
+raand :: SDBody args Signal
+raand = rand (lo_ 0, hi_ 1)
+
+seelect :: (ToSig i args)
+           => [SDBody args Signal]
+           -> i
+           -> SDBody args Signal
+seelect scale x = select (x ~* length scale) scale
+
+deelay2 :: (ToSig i args)
+           => i
+           -> SDBody args Signal
+deelay2 input = delay2 (in_ input)
