@@ -11,54 +11,84 @@ import Util
 import qualified MyInstruments as M
 import MyCombinators
 import Data.Function
+import qualified Scales as S
 
-blam = do
+fuzzwuzz = do
+  let dur = 1
+
   fork $ do
     s1 <- play $ do
-      pinkNoise ~* 0.1
-    wait (1/4)
+      pinkNoise
+        & (~*0.1)
+        & (~*(sinOsc (freq_ $ 1/(dur*2))))
+    wait (dur)
     free s1
 
 
 main = do
   cmdPeriod
-
-  -- 
-
-  -- replicateM_ 5 $ play $ do
-  --   ( M.birdies =<< (
-  --       my
-  --       & seelect ((midiRatio . (~+36)) <$> [0, 2, 4])
-  --       & laag 1
-  --       )
-  --     )
+  fuzzwuzz
 
 
 
-  -- 
+  -- play $ do
+  --   sinOsc (freq_ $ my
+  --           & seelect (((+)
+  --                       <$> ([1..4] <&> (*12))
+  --                       <*> [0, 2, 4, 6, 8])
+
+  --                      <&> (+36)
+  --                      <&> midiCPS
+  --                     ))
+  --   & (~* 0.1)
+
+  
+
+  let seq = ( (+)
+              <$> [0, 24, 36]
+              <*> [0, 0, 0, 2, 2, 4, 7, 9, 11]
+            )
+
+
+  replicateM_ 3 $ play $ do
+    base <- ( my
+              & seelectKR ((~+36) <$> [0, 2, 4])
+              & laag 1
+            ) :: SDBody args Signal
+
+    tones <- sequence $ seq
+      <&> (~+base)
+      <&> midiCPS
+    M.birdies tones
+      -- >>= mapM (~*2)
+
+
 
 
   -- play $ do
   --   snd <- soundIn (Bus 0)
 
-  --   -- ps <- pitchShift ( in_ snd
-  --   --            , ratio_ $ my & seelect ((~*1) <$> [ 1, 2])
-  --   --            , windowSize_ 0.01
-  --   --            )
+  --   snd <- pitchShift ( in_ snd
+  --              , ratio_ $ (sinOsc (freq_ 0.1) ~* my) ~+ 1
+  --                -- & seelect ((~*1) <$> [ 1, 2])
+  --              , windowSize_ 0.01
+  --              )
 
 
   --   shift <- mx  & linexp (0, 1, 100, 48000)
-  --   freq <- my & linexp (0, 1, 4000, 16000)
+  --   freq <- my & linexp (0, 1, 2000, 4000)
   --   -- freq <- 1 ~* 8000
 
   --   snd
-  --     & \x -> freqShift ( in_ x, freq_ $ shift)
+  --     -- & \x -> freqShift ( in_ x, freq_ $ shift)
   --     & \x -> latch (in_ x, trig_ $ impulse (freq_ freq))
+  --     -- & \x -> lpf (in_ x, freq_ $ my & linexp (0, 1, 400, 8000))
+  --     -- & \x -> hpf (in_ x, freq_ 800)
+  --     -- & \x -> freqShift ( in_ x, freq_ $ (-1) ~* shift)
+  --     -- & \x -> latch (in_ x, trig_ $ impulse (freq_ freq))
   --     & \x -> lpf (in_ x, freq_ $ my & linexp (0, 1, 400, 8000))
-  --     & \x -> hpf (in_ x, freq_ 800)
-  --     & \x -> freqShift ( in_ x, freq_ $ (-1) ~* shift)
   --     & tanh'
-  --     & (~*0.2)
+  --     & (~*1.0)
 
   -- play $ do
   --   snd <- soundIn (Bus 0)
@@ -78,19 +108,24 @@ main = do
   --           & \x -> x
   --           & \x -> lpf (in_ x, freq_ 8000)
   --           & \x -> hpf (in_ x, freq_ 800)
-  --           & (~*0.2)
+  --           & (~*0.5)
   --   ass
   --     & tanh'
   --     & \x -> freeVerb (in_ x, room_ 5)
 
-  play $ do
-    shift <- my
-      & laag 1
-      & seelect ((~*1) <$> [60, 80])
-    snd <- brownNoise
-    snd
-      & \x -> freqShift ( in_ x, freq_ $ midiCPS shift)
 
+  -- | Play  scales
+
+  -- play $ do
+  --   sinOsc (freq_ $ my
+  --           & seelect (((+)
+  --                       <$> ([1..4] <&> (*12))
+  --                       <*> [0, 2, 4, 6, 8])
+
+  --                      <&> (+36)
+  --                      <&> midiCPS
+  --                     ))
+  --   & (~* 0.1)
 
   -- 
 

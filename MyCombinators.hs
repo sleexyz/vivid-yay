@@ -18,3 +18,11 @@ downsample input = do
 
 layer :: Int -> SDBody args Signal -> SDBody args Signal
 layer n body = uOp TanH $ mix $ replicate n body
+
+
+spaceify :: Signal -> SDBody args Signal
+spaceify sig = do
+  cont <- mx
+  sig
+    & (~** (cont & linlin (0, 1, 0.5, 1)))
+    & (~* (cont  & linexp (0, 1, 1/16, 5/4)))

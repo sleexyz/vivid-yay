@@ -108,6 +108,12 @@ seelect :: (ToSig i args)
            -> SDBody args Signal
 seelect scale x = select (x ~* length scale) scale
 
+seelectKR :: (ToSig i args)
+           => [SDBody args Signal]
+           -> i
+           -> SDBody args Signal
+seelectKR scale x = select (x ~* length scale) scale ? KR
+
 deelay2 :: (ToSig i args)
            => i
            -> SDBody args Signal

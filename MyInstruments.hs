@@ -35,6 +35,7 @@ fract1 = do
 
   resonz(in_ $ whiteNoise, freq_ $ 1000 ~* sig1, bwr_ sig2)
 
+
 -- | The OG birdies
 birdies0 :: SDBody args Signal
 birdies0 = do
@@ -58,35 +59,37 @@ birdies0 = do
     & \x -> freeVerb (in_ x, room_ 5)
 
 -- | One birdy
-birdy :: Signal -> SDBody args Signal
-birdy tone = do
+-- birdy :: Signal -> SDBody args Signal
+birdy :: [Signal] -> SDBody args Signal
+birdy tones = do
 
     f0 <- fract 0.01
     f1 <- fract $ f0 & linexp (-1, 1, 0.0001, 10)
     f2 <- fract $ f1 & linexp (-1, 1, 0.01, 10)
 
-    let seq = (midiCPS . dc ) <$> ( (+) <$> [0, 24, 36]
-                                    <*> [0, 0, 0, 2, 2, 4, 7, 9, 11]
-                                  )
 
-    freq <- select (f2 & linlin (-1, 1, 0, length seq)) seq
+    freq <- f2
+      & linlin (-1, 1, 0, 1)
+      & seelectKR (return <$> tones)
 
     resonz ( in_ $ brownNoise ~* (f1  & linexp (-1, 1, 0.001, 1))
            , freq_ $ freq
-             & (~* tone)
              & laag 0.01
-           , bwr_ $ 0.001
+           , bwr_ $ 0.0001
            )
+      >>= spaceify
+      & (~*10)
+      & tanh'
 
 -- | Polyphonic panning Birdies
-birdies :: Signal -> SDBody args [Signal]
-birdies tone = do
-  let haha = birdy tone >>= \x -> pan2 (in_ x, pos_ $  sinOsc (freq_ 1, phase_ raand))
+-- | Takes scale, returns birdy
+birdies :: [Signal] -> SDBody args [Signal]
+birdies tones = do
+  let haha = birdy tones >>= \x -> pan2 (in_ x, pos_ $  sinOsc (freq_ 0.5, phase_ raand))
 
   b0 <- haha
   birdies <- replicateM 5 haha
   foldM (zipWithM (~+)) b0 birdies
-
 
 
 
@@ -135,3 +138,38 @@ thingy3 = replicateM_ 5 $ play $ do
     & tanh'
     & (~*0.2)
     & \x -> lpf (in_ x, freq_ lmx)
+
+lilDrumMachine = play $ do
+  trig <- lfPulse ( freq_ 16
+                  , width_ 0.1
+                  )
+
+
+  let m = -inf
+  let seq = [ 3, 0, 0, 0, 3, 0, 0, 0
+            , 2, 0, 0, 0, 3, 0, 0, 0
+            , 3, 0, 0, 0, 3, 0, 0, 0
+            , 2, 0, 0, 0, 3, 0, 0, 0
+            ]
+
+  let inst = [ dc 0
+              , sinOsc (freq_ $ midiCPS 48)
+              , whiteNoise ~* 0.1
+              , pinkNoise ~* 0.1
+              ]
+
+
+
+  demand ( trigger_ trig
+          , reset_ 0
+          , ugen_ $ dseq (repeats_ inf)
+
+            =<< ( seq
+                  <&> (~+0)
+                  & sequence
+                )
+          )
+    & \x -> select x inst
+    & \x -> x ~* 0.05
+    >>= spaceify
+    & tanh'
