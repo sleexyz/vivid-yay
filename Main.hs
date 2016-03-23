@@ -25,21 +25,24 @@ fuzzwuzz = do
     free s1
 
 
-birdies = sd () $ do
+birdies = sdNamed "birdies" () $ do
   let seq = ( (+)
               <$> [0, 24, 36]
               <*> [0, 0, 0, 2, 2, 4, 7, 9, 11]
             )
 
-  base <- ( my
-            & seelectKR ((~+40) <$> [0, 2, 4])
-            & laag 1
-          ) :: SDBody args Signal
+  -- base <- ( my
+  --           & seelectKR ((~+40) <$> [0, 2, 4])
+  --           & laag 1
+  --         ) :: SDBody args Signal
+  base <- kIn (bus_ 901)
+    & linlin (0, 1, 40, 80)
 
   tones <- sequence $ seq
     <&> (~+base)
     <&> midiCPS
-  out 2 =<< M.birdies tones
+  bigness <- (kIn (bus_ 902))
+  out 2 =<< M.birdies tones bigness
 
 
 
@@ -49,7 +52,7 @@ main = do
   cmdPeriod
   fuzzwuzz
 
-  -- replicateM_ 3 $ synth birdies ()
+  replicateM_ 3 $ synth birdies ()
 
 
   -- play $ do
@@ -63,7 +66,6 @@ main = do
   --                     ))
   --   & (~* 0.1)
 
-  
 
 
 
@@ -74,32 +76,45 @@ main = do
     left <- soundIn (Bus 2)
     right <- soundIn (Bus 3)
 
-    freq <- my & linexp (0, 1, 4000, 22050)
 
     sequence ( [left, right]
                <&> \x -> x ~* 1
-                         -- >>= \x -> latch (in_ x, trig_ $ impulse (freq_ freq))
-                         -- >>= \x -> bpf ( in_ x
-                         --               , freq_ $ 4000
-                         --               , rq_ $ mx & linexp (0, 1, 0.2, 2)
-                         --               )
+
+                         -- | down sampling
+                         >>= \x -> latch (in_ x, trig_ $ impulse (freq_ $
+                                                                  kIn (bus_ 905) & linexp (0, 1, 4000, 24000)
+                                                                 ))
+
+                         -- | low pass
+                         >>= \x -> lpf (in_ x, freq_ $
+                                        kIn (bus_ 906) & linexp (0, 1, 100, 8000)
+                                        )
+
+                         -- | master vol
+                         >>= (~*(kIn (bus_ 908) & linlin (0, 1, 0, 10)))
+
+                         -- | reverb
+                         >>= \x -> freeVerb (in_ x, room_ $
+                                             kIn (bus_ 907) & linlin (0, 1, 0, 10)
+                                            )
+
                          >>= tanh'
-                         >>= \x -> (do
-                                       (~*0.2) x ~+ (x
-                                                     -- & \x -> freqShift ( in_ x, freq_ $ freq)
-                                                     -- & uOp Recip
-                                                     & \x -> normalizer (in_ x)
-                                                     & \x -> lpf (in_ x, freq_ $ my & linexp (0, 1, 400, 8000))
-                                                     -- -- & tanh'
-                                                     -- & uOp Recip
-                                                     & \x -> latch (in_ x, trig_ $ impulse (freq_ $ freq ~* mx ~* 1))
-                                                    )
-                                       )
+
+                         -- >>= \x -> (do
+                         --               (~*0.2) x ~+ (x
+                         --                             -- & \x -> freqShift ( in_ x, freq_ $ freq)
+                         --                             -- & uOp Recip
+                         --                             & \x -> normalizer (in_ x)
+                         --                             & \x -> lpf (in_ x, freq_ $ my & linexp (0, 1, 400, 8000))
+                         --                             -- -- & tanh'
+                         --                             -- & uOp Recip
+                         --                             & \x -> latch (in_ x, trig_ $ impulse (freq_ $ freq ~* mx ~* 1))
+                         --                            )
+                         --               )
                          -- >>= \x -> pitchShift ( in_ x
-                         --                      , ratio_ $ my
-                         --                      , windowSize_ 0.01
+                         --                      , ratio_ $ my ~* 2
+                         --                      , windowSize_ 1
                          --                      )
-                         -- >>= \x -> freeVerb (in_ x, room_ 0.1)
 
              )
 

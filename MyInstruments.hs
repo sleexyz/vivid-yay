@@ -60,8 +60,8 @@ birdies0 = do
 
 -- | One birdy
 -- birdy :: Signal -> SDBody args Signal
-birdy :: [Signal] -> SDBody args Signal
-birdy tones = do
+birdy :: [Signal] -> Signal -> SDBody args Signal
+birdy tones bigness = do
 
     f0 <- fract 0.01
     f1 <- fract $ f0 & linexp (-1, 1, 0.0001, 10)
@@ -77,15 +77,15 @@ birdy tones = do
              & laag 0.01
            , bwr_ $ 0.0001
            )
-      -- >>= spaceify
+      >>= spaceify bigness
       & (~*10)
       & tanh'
 
 -- | Polyphonic panning Birdies
 -- | Takes scale, returns birdy
-birdies :: [Signal] -> SDBody args [Signal]
-birdies tones = do
-  let haha = birdy tones >>= \x -> pan2 (in_ x, pos_ $  sinOsc (freq_ 0.5, phase_ raand))
+birdies :: [Signal] -> Signal -> SDBody args [Signal]
+birdies tones bigness = do
+  let haha = birdy tones bigness >>= \x -> pan2 (in_ x, pos_ $  sinOsc (freq_ 0.5, phase_ raand))
 
   b0 <- haha
   birdies <- replicateM 5 haha
@@ -171,5 +171,5 @@ lilDrumMachine = play $ do
           )
     & \x -> select x inst
     & \x -> x ~* 0.05
-    >>= spaceify
+    -- >>= (spaceify)
     & tanh'
