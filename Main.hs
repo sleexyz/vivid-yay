@@ -25,10 +25,31 @@ fuzzwuzz = do
     free s1
 
 
+birdies = sd () $ do
+  let seq = ( (+)
+              <$> [0, 24, 36]
+              <*> [0, 0, 0, 2, 2, 4, 7, 9, 11]
+            )
+
+  base <- ( my
+            & seelectKR ((~+40) <$> [0, 2, 4])
+            & laag 1
+          ) :: SDBody args Signal
+
+  tones <- sequence $ seq
+    <&> (~+base)
+    <&> midiCPS
+  out 2 =<< M.birdies tones
+
+
+
+
+  
 main = do
   cmdPeriod
   fuzzwuzz
 
+  -- replicateM_ 3 $ synth birdies ()
 
 
   -- play $ do
@@ -44,28 +65,65 @@ main = do
 
   
 
-  let seq = ( (+)
-              <$> [0, 24, 36]
-              <*> [0, 0, 0, 2, 2, 4, 7, 9, 11]
-            )
-
-
-  replicateM_ 3 $ play $ do
-    base <- ( my
-              & seelectKR ((~+36) <$> [0, 2, 4])
-              & laag 1
-            ) :: SDBody args Signal
-
-    tones <- sequence $ seq
-      <&> (~+base)
-      <&> midiCPS
-    M.birdies tones
-      -- >>= mapM (~*2)
 
 
 
 
-  -- play $ do
+
+  play $ do
+    left <- soundIn (Bus 2)
+    right <- soundIn (Bus 3)
+
+    freq <- my & linexp (0, 1, 4000, 22050)
+
+    sequence ( [left, right]
+               <&> \x -> x ~* 1
+                         -- >>= \x -> latch (in_ x, trig_ $ impulse (freq_ freq))
+                         -- >>= \x -> bpf ( in_ x
+                         --               , freq_ $ 4000
+                         --               , rq_ $ mx & linexp (0, 1, 0.2, 2)
+                         --               )
+                         >>= tanh'
+                         >>= \x -> (do
+                                       (~*0.2) x ~+ (x
+                                                     -- & \x -> freqShift ( in_ x, freq_ $ freq)
+                                                     -- & uOp Recip
+                                                     & \x -> normalizer (in_ x)
+                                                     & \x -> lpf (in_ x, freq_ $ my & linexp (0, 1, 400, 8000))
+                                                     -- -- & tanh'
+                                                     -- & uOp Recip
+                                                     & \x -> latch (in_ x, trig_ $ impulse (freq_ $ freq ~* mx ~* 1))
+                                                    )
+                                       )
+                         -- >>= \x -> pitchShift ( in_ x
+                         --                      , ratio_ $ my
+                         --                      , windowSize_ 0.01
+                         --                      )
+                         -- >>= \x -> freeVerb (in_ x, room_ 0.1)
+
+             )
+
+
+    --   shift <- mx  & linexp (0, 1, 100, 48000)
+      -- freq <- my & linexp (0, 1, 2000, 4000)
+    --   -- freq <- 1 ~* 8000
+
+    --   snd
+    --     -- & \x -> freqShift ( in_ x, freq_ $ shift)
+    --     & \x -> latch (in_ x, trig_ $ impulse (freq_ freq))
+    --     -- & \x -> lpf (in_ x, freq_ $ my & linexp (0, 1, 400, 8000))
+    --     -- & \x -> hpf (in_ x, freq_ 800)
+    --     -- & \x -> freqShift ( in_ x, freq_ $ (-1) ~* shift)
+    --     -- & \x -> latch (in_ x, trig_ $ impulse (freq_ freq))
+    --     & \x -> lpf (in_ x, freq_ $ my & linexp (0, 1, 400, 8000))
+    --     & tanh'
+    --     & (~*1.0)
+
+
+
+
+
+    -- play $ do
   --   snd <- soundIn (Bus 0)
 
   --   snd <- pitchShift ( in_ snd

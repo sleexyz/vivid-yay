@@ -77,7 +77,7 @@ birdy tones = do
              & laag 0.01
            , bwr_ $ 0.0001
            )
-      >>= spaceify
+      -- >>= spaceify
       & (~*10)
       & tanh'
 
