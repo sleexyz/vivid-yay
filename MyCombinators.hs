@@ -25,3 +25,9 @@ spaceify bigness sig = do
   sig
     & (~** (bigness & linlin (0, 1, 0.5, 1)))
     & (~* (bigness & linexp (0, 1, 1/32, 5/4)))
+
+pianoize :: (SDBody args Signal -> SDBody args Signal) -> SDBody args Signal
+pianoize fn = do
+  s <- sequence $ ([32..84])
+    <&> \x -> fn (midiCPS x) ~* ((kIn (bus_ x)) ? KR)
+  mix s

@@ -52,7 +52,7 @@ main = do
   cmdPeriod
   fuzzwuzz
 
-  replicateM_ 3 $ synth birdies ()
+  -- replicateM_ 1 $ synth birdies ()
 
 
   -- play $ do
@@ -69,7 +69,64 @@ main = do
 
 
 
+  -- play $ do
+  --   poop <- sequence $ [32..72]
+  --     <&> \x -> ringz ( in_ $ dc 1 ~*(kIn (bus_ x))
+  --                      , freq_ $ midiCPS $ x + 10
+  --                      )
+  --     <&> \x -> x ~*0.1
+  --   mix poop
 
+  -- play $ do
+  --   (pianoize $ \x -> sinOsc (freq_ x))
+  --     & \x -> x ~* 0.5
+  
+
+
+
+  -- play $ do
+  --   poop <- sequence $ [32..84]
+  --     <&> \x -> sinOsc (freq_ $ midiCPS $ x ~+ 10) ~* ((kIn (bus_ x)) ? KR)
+  --   s <- mix poop
+  --     <&> (~*0.8)
+  --   out 2 [s, s]
+
+
+  -- | alsa input
+  play $ do
+    left <- soundIn (Bus 4)
+    right <- soundIn (Bus 5)
+
+    lr <- sequence ( [left, right]
+                  <&> \x -> x ~* 1
+                            -- | down sampling
+                            -- >>= \x -> latch (in_ x, trig_ $ impulse (freq_ $
+                            --                                          kIn (bus_ 905) & linexp (0, 1, 4000, 24000)
+                            --                                         ))
+
+                            -- | low pass
+
+                            -- >>=  \x -> resonz (in_ x, freq_ $
+                            --                    kIn (bus_ 904) & linexp (0, 1, 100, 16000)
+                            --                   , bwr_ $ kIn (bus_ 903) & linexp (0, 1, 0.001, 1)
+                            --                   )
+
+                            >>= \x -> (do
+                                          s <- pianoize (\freq -> resonz (in_ x, freq_ freq
+                                                                         , bwr_ $ kIn (bus_ 903) & linexp (0, 1, 0.001, 1)
+                                                                         ))
+                                          s1 <- dc 0
+                                          s1 <- resonz (in_ x, freq_ $
+                                                        kIn (bus_ 904) & linexp (0, 1, 100, 16000)
+                                                       , bwr_ $ kIn (bus_ 903) & linexp (0, 1, 0.001, 1)
+                                                       )
+                                          s ~+ s1
+
+                                      )
+                            >>= \x -> x ~* 10
+                            >>= tanh'
+                            )
+    out 2 lr
 
 
   play $ do
@@ -81,9 +138,9 @@ main = do
                <&> \x -> x ~* 1
 
                          -- | down sampling
-                         >>= \x -> latch (in_ x, trig_ $ impulse (freq_ $
-                                                                  kIn (bus_ 905) & linexp (0, 1, 4000, 24000)
-                                                                 ))
+                         -- >>= \x -> latch (in_ x, trig_ $ impulse (freq_ $
+                         --                                          kIn (bus_ 905) & linexp (0, 1, 4000, 24000)
+                         --                                         ))
 
                          -- | low pass
                          >>= \x -> lpf (in_ x, freq_ $
@@ -111,6 +168,7 @@ main = do
                          --                             & \x -> latch (in_ x, trig_ $ impulse (freq_ $ freq ~* mx ~* 1))
                          --                            )
                          --               )
+
                          -- >>= \x -> pitchShift ( in_ x
                          --                      , ratio_ $ my ~* 2
                          --                      , windowSize_ 1
