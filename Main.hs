@@ -13,121 +13,104 @@ import MyCombinators
 import Data.Function
 import qualified Scales as S
 
+{-|
+███████╗ ██████╗ ██╗   ██╗██████╗  ██████╗███████╗    ██████╗  ██████╗  ██╗ ██████╗ ██╗██╗
+██╔════╝██╔═══██╗██║   ██║██╔══██╗██╔════╝██╔════╝    ╚════██╗██╔═████╗███║██╔════╝ ██║██║
+███████╗██║   ██║██║   ██║██████╔╝██║     █████╗       █████╔╝██║██╔██║╚██║███████╗ ██║██║
+╚════██║██║   ██║██║   ██║██╔══██╗██║     ██╔══╝      ██╔═══╝ ████╔╝██║ ██║██╔═══██╗╚═╝╚═╝
+███████║╚██████╔╝╚██████╔╝██║  ██║╚██████╗███████╗    ███████╗╚██████╔╝ ██║╚██████╔╝██╗██╗
+╚══════╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝╚══════╝    ╚══════╝ ╚═════╝  ╚═╝ ╚═════╝ ╚═╝╚═╝
+-}
+
+
+masterShift :: SDBody args Signal -> SDBody args Signal
+masterShift x = x ~+ ( my
+                   & seelectKR ((~+0) <$> [0, 2, 4])
+                   & laag 0.5
+                 )
+
+masterFreq :: SDBody args Signal
+masterFreq  = kIn (bus_ 903) & linexp (0, 1, 0.01, 10)
+
 fuzzwuzz = do
-  let dur = 1
+  let dur = 2
 
   fork $ do
-    s1 <- play $ do
+    play $ do
       pinkNoise
-        & (~*0.1)
-        & (~*(sinOsc (freq_ $ 1/(dur*2))))
-    wait (dur)
-    free s1
+        & (~*1)
+        & \x -> x ~* adsrGen (dur * 3/20) (dur * 17/20) 0 0 Curve_Cubed none
+        & \x -> pan2 ( in_ x
+                     , pos_ $ sinOsc (freq_ $ lfSaw (freq_ 0.2) & linlin (-1, 1, 0, 10)) ~* 0.2
+                     )
+        >>= \x -> sequence $ x
+                  <&> \x -> freeVerb (in_ x, room_ 0.8)
+    return ()
+    -- wait (dur * 5)
+    -- free s1
+
+
+
+-- masterScale = [2, 2, 4, 7, 9, 11, 19]
+masterScale = [2, 2, 4, 7, 9, 11]
+-- masterScale = [0, 2, 3, 5, 7, 8, 10]
+
+
+
 
 
 birdies = sdNamed "birdies" () $ do
   let seq = ( (+)
-              <$> [0, 24, 36]
-              <*> [0, 0, 0, 2, 2, 4, 7, 9, 11]
+              -- <$> [0]
+              -- <$> [0, 0]
+              -- <$> [0, 0, 24]
+              -- <$> [0, 0, 24, 36]
+              <$> [0, 24, 36, 36, 48]
+
+              <*> ([0, 0, 0]
+                   ++ masterScale
+                  )
             )
 
-  -- base <- ( my
-  --           & seelectKR ((~+40) <$> [0, 2, 4])
-  --           & laag 1
-  --         ) :: SDBody args Signal
-  base <- kIn (bus_ 901)
-    & linlin (0, 1, 40, 80)
+  -- base <- kIn (bus_ 901)
+  --   & laag 0.5
+  --   & linlin (0, 1, 36, 72)
+  base <- masterShift (dc 60)
+    -- & (~+12)
 
   tones <- sequence $ seq
     <&> (~+base)
     <&> midiCPS
   bigness <- (kIn (bus_ 902))
-  out 2 =<< M.birdies tones bigness
+
+  s <- M.birdies tones bigness
+  out 2 =<< (sequence $  s
+             <&> \x -> x ~* kIn (bus_ 901) ~* 2
+            )
 
 
 
-
-  
-main = do
+source2016 :: IO ()
+source2016 = do
   cmdPeriod
   fuzzwuzz
 
-  -- replicateM_ 1 $ synth birdies ()
-
-
-  -- play $ do
-  --   sinOsc (freq_ $ my
-  --           & seelect (((+)
-  --                       <$> ([1..4] <&> (*12))
-  --                       <*> [0, 2, 4, 6, 8])
-
-  --                      <&> (+36)
-  --                      <&> midiCPS
-  --                     ))
-  --   & (~* 0.1)
+  -- | birdies!
+  replicateM_ 1 $ synth birdies ()
 
 
 
-
-  -- play $ do
-  --   poop <- sequence $ [32..72]
-  --     <&> \x -> ringz ( in_ $ dc 1 ~*(kIn (bus_ x))
-  --                      , freq_ $ midiCPS $ x + 10
-  --                      )
-  --     <&> \x -> x ~*0.1
-  --   mix poop
-
+  -- -- | Piano
   -- play $ do
   --   (pianoize $ \x -> sinOsc (freq_ x))
   --     & \x -> x ~* 0.5
-  
 
 
 
-  -- play $ do
-  --   poop <- sequence $ [32..84]
-  --     <&> \x -> sinOsc (freq_ $ midiCPS $ x ~+ 10) ~* ((kIn (bus_ x)) ? KR)
-  --   s <- mix poop
-  --     <&> (~*0.8)
-  --   out 2 [s, s]
 
 
-  -- | alsa input
-  play $ do
-    left <- soundIn (Bus 4)
-    right <- soundIn (Bus 5)
 
-    lr <- sequence ( [left, right]
-                  <&> \x -> x ~* 1
-                            -- | down sampling
-                            -- >>= \x -> latch (in_ x, trig_ $ impulse (freq_ $
-                            --                                          kIn (bus_ 905) & linexp (0, 1, 4000, 24000)
-                            --                                         ))
-
-                            -- | low pass
-
-                            -- >>=  \x -> resonz (in_ x, freq_ $
-                            --                    kIn (bus_ 904) & linexp (0, 1, 100, 16000)
-                            --                   , bwr_ $ kIn (bus_ 903) & linexp (0, 1, 0.001, 1)
-                            --                   )
-
-                            >>= \x -> (do
-                                          s <- pianoize (\freq -> resonz (in_ x, freq_ freq
-                                                                         , bwr_ $ kIn (bus_ 903) & linexp (0, 1, 0.001, 1)
-                                                                         ))
-                                          s1 <- dc 0
-                                          s1 <- resonz (in_ x, freq_ $
-                                                        kIn (bus_ 904) & linexp (0, 1, 100, 16000)
-                                                       , bwr_ $ kIn (bus_ 903) & linexp (0, 1, 0.001, 1)
-                                                       )
-                                          s ~+ s1
-
-                                      )
-                            >>= \x -> x ~* 10
-                            >>= tanh'
-                            )
-    out 2 lr
-
+  -- | master mixer
 
   play $ do
     left <- soundIn (Bus 2)
@@ -137,18 +120,28 @@ main = do
     sequence ( [left, right]
                <&> \x -> x ~* 1
 
-                         -- | down sampling
+                         -- -- | down sampling
                          -- >>= \x -> latch (in_ x, trig_ $ impulse (freq_ $
-                         --                                          kIn (bus_ 905) & linexp (0, 1, 4000, 24000)
+                         --                                          kIn (bus_ 905) & linexp (0, 1, 2000, 24000)
                          --                                         ))
 
                          -- | low pass
                          >>= \x -> lpf (in_ x, freq_ $
-                                        kIn (bus_ 906) & linexp (0, 1, 100, 8000)
+                                        kIn (bus_ 906) & linexp (0, 1, 100, 24000)
                                         )
 
+                         -- | ducker
+                         -- >>= \x -> compander ( in_ x
+                         --                     , control_ $ lfPulse (freq_ $ masterFreq ~* 1) & linexp (-1, 1, 20, 22050)
+                         --                     )
+
+                         -- >>= \x -> lpf ( in_ x
+                         --               , freq_ $ sinOsc (freq_ $ masterFreq ~* 16)
+                         --                 & linexp (-1, 1, 20, 22050)
+                         --               )
+
                          -- | master vol
-                         >>= (~*(kIn (bus_ 908) & linlin (0, 1, 0, 10)))
+                         >>= (~*(kIn (bus_ 908) & linlin (0, 1, 0, 50)))
 
                          -- | reverb
                          >>= \x -> freeVerb (in_ x, room_ $
@@ -175,140 +168,43 @@ main = do
                          --                      )
 
              )
-
-
-    --   shift <- mx  & linexp (0, 1, 100, 48000)
-      -- freq <- my & linexp (0, 1, 2000, 4000)
-    --   -- freq <- 1 ~* 8000
-
-    --   snd
-    --     -- & \x -> freqShift ( in_ x, freq_ $ shift)
-    --     & \x -> latch (in_ x, trig_ $ impulse (freq_ freq))
-    --     -- & \x -> lpf (in_ x, freq_ $ my & linexp (0, 1, 400, 8000))
-    --     -- & \x -> hpf (in_ x, freq_ 800)
-    --     -- & \x -> freqShift ( in_ x, freq_ $ (-1) ~* shift)
-    --     -- & \x -> latch (in_ x, trig_ $ impulse (freq_ freq))
-    --     & \x -> lpf (in_ x, freq_ $ my & linexp (0, 1, 400, 8000))
-    --     & tanh'
-    --     & (~*1.0)
-
-
-
-
-
-    -- play $ do
-  --   snd <- soundIn (Bus 0)
-
-  --   snd <- pitchShift ( in_ snd
-  --              , ratio_ $ (sinOsc (freq_ 0.1) ~* my) ~+ 1
-  --                -- & seelect ((~*1) <$> [ 1, 2])
-  --              , windowSize_ 0.01
-  --              )
-
-
-  --   shift <- mx  & linexp (0, 1, 100, 48000)
-  --   freq <- my & linexp (0, 1, 2000, 4000)
-  --   -- freq <- 1 ~* 8000
-
-  --   snd
-  --     -- & \x -> freqShift ( in_ x, freq_ $ shift)
-  --     & \x -> latch (in_ x, trig_ $ impulse (freq_ freq))
-  --     -- & \x -> lpf (in_ x, freq_ $ my & linexp (0, 1, 400, 8000))
-  --     -- & \x -> hpf (in_ x, freq_ 800)
-  --     -- & \x -> freqShift ( in_ x, freq_ $ (-1) ~* shift)
-  --     -- & \x -> latch (in_ x, trig_ $ impulse (freq_ freq))
-  --     & \x -> lpf (in_ x, freq_ $ my & linexp (0, 1, 400, 8000))
-  --     & tanh'
-  --     & (~*1.0)
-
-  -- play $ do
-  --   snd <- soundIn (Bus 0)
-
-  --   -- shift <- mx  & linexp (0, 1, 100, 48000)
-  --   let ass = do
-  --         shift <- 1 ~* 40000
-  --         freq <- my & linexp (-1, 1, 2000, 8000) & laag 1
-
-  --         pulse <- impulse (freq_ freq)
-
-  --         snd
-  --           & \x -> freqShift ( in_ x, freq_ $ shift)
-  --           & \x -> latch (in_ x, trig_ pulse)
-  --           & \x -> freqShift ( in_ x, freq_ $ (-1) ~* shift)
-  --           & \x -> latch (in_ x, trig_ $ pulse)
-  --           & \x -> x
-  --           & \x -> lpf (in_ x, freq_ 8000)
-  --           & \x -> hpf (in_ x, freq_ 800)
-  --           & (~*0.5)
-  --   ass
-  --     & tanh'
-  --     & \x -> freeVerb (in_ x, room_ 5)
-
-
-  -- | Play  scales
-
-  -- play $ do
-  --   sinOsc (freq_ $ my
-  --           & seelect (((+)
-  --                       <$> ([1..4] <&> (*12))
-  --                       <*> [0, 2, 4, 6, 8])
-
-  --                      <&> (+36)
-  --                      <&> midiCPS
-  --                     ))
-  --   & (~* 0.1)
-
-  -- 
-
-  -- play $ do
-  --   base <- my
-  --       & laag 1
-  --       & seelect ((~+80) <$> [0, 2, 10])
-
-  --   wn <- whiteNoise
-  --   freq <- fract 0.1
-  --     & linlin (-1, 1, 0, 1)
-  --     & seelect ((midiCPS . (~+base)) <$> [0, 2, 12, 14])
-
-  --   (M.wind freq)
-  --     & tanh'
-  --     & (~*0.5)
-
   -- -- 
 
-  -- play $ do
-  --   base <- 80 ~* 1
+  -- | Wind
 
-  --   freq <- whiteNoise
+  -- play $ do
+  --   mod <- masterFreq
+
+  --   freq <- sinOsc (freq_ mod)
+  --   -- freq <- lfSaw (freq_ mod)
+  --   -- freq <- whiteNoise
   --     & linlin (-1, 1, 0, 1)
-  --     & seelect ((midiCPS . (~+base)) <$> [8, 2, 12, 14])
+  --     & seelect ( (take 2 $ drop 2 masterScale)
+  --                <&> (~+60)
+  --                 -- <&> (~+12)
+  --                 -- <&> (~+7)
+  --               )
+  --     & \x -> x ~+ sinOsc (freq_ 2) ~* 0.2 -- vibrato
+  --     & masterShift
+  --     & midiCPS
 
-  --   (M.wind freq) ~* sinOsc (freq_ 0.01)
+  --   (M.wind freq) ~* (kIn (bus_ 904) ~* 5)
+  --     & \x -> out 2 [x, x]
 
-  -- 
-
-
-
-
-  -- play $ do
-
-  --   base <- 72 ~* 1
-
-  --   seq <- sequence $ (midiCPS . (~+base))
-  --                   <$> [0, 7, 19, 24]
-
-  --   foo <- dseq (repeats_ inf) seq
-
-
-  --   imp <- impulse (freq_ $ fract 0.01 & linexp (-1, 1, 1, 20) & laag 10) ? KR
-  --   dem <- demand (trig_ imp, reset_ 0, ugen_ foo)
-  --   freq <- dem
-  --     & laag 0.1
-
-  --   (mix $ [sinOsc (freq_ freq)])
-  --     & (~* 0.1)
-  --     & (~* (fract 0.1 & linexp (-1, 1, 0.001, 1) & laag 1))
-  --     & uOp TanH
 
 
   return ()
+
+
+main = do
+  source2016
+
+{-
+
+TODO:
+- fade in/out for recompile
+- adsrGen-ize piano
+- figure out compander
+
+-}
+
