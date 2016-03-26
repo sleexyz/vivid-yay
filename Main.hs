@@ -32,6 +32,12 @@ masterShift x = x ~+ ( my
 masterFreq :: SDBody args Signal
 masterFreq  = kIn (bus_ 903) & linexp (0, 1, 0.01, 10)
 
+-- masterScale = [2, 2, 4, 7, 9, 11, 19]
+-- masterScale = [2, 2, 4, 7, 9, 11]
+
+masterScale = [0,  4, 7, 11, 14]
+-- masterScale = [0, 2, 3, 5, 7, 8, 10]
+
 fuzzwuzz = do
   let dur = 2
 
@@ -51,9 +57,6 @@ fuzzwuzz = do
 
 
 
--- masterScale = [2, 2, 4, 7, 9, 11, 19]
-masterScale = [2, 2, 4, 7, 9, 11]
--- masterScale = [0, 2, 3, 5, 7, 8, 10]
 
 
 
@@ -63,18 +66,14 @@ birdies = sdNamed "birdies" () $ do
   let seq = ( (+)
               -- <$> [0]
               -- <$> [0, 0]
-              -- <$> [0, 0, 24]
-              -- <$> [0, 0, 24, 36]
-              <$> [0, 24, 36, 36, 48]
+              <$> [0, 0, 24, 36]
+              -- <$> [0, 24, 36, 36, 48]
 
               <*> ([0, 0, 0]
                    ++ masterScale
                   )
             )
 
-  -- base <- kIn (bus_ 901)
-  --   & laag 0.5
-  --   & linlin (0, 1, 36, 72)
   base <- masterShift (dc 60)
     -- & (~+12)
 
@@ -89,24 +88,48 @@ birdies = sdNamed "birdies" () $ do
             )
 
 
+wind = do
+    mod <- masterFreq
+
+    freq <- sinOsc (freq_ mod)
+    -- freq <- lfSaw (freq_ mod)
+    -- freq <- whiteNoise
+      & linlin (-1, 1, 0, 1)
+      & seelect ( (take 2 $ drop 2 masterScale)
+                 <&> (~+60)
+                  -- <&> (~+12)
+                  -- <&> (~+7)
+                )
+      & \x -> x ~+ sinOsc (freq_ 2) ~* 0.2 -- vibrato
+      & masterShift
+      & midiCPS
+
+    (M.wind freq) ~* (kIn (bus_ 904) ~* 5)
+      & \x -> out 2 [x, x]
+
+
 
 source2016 :: IO ()
 source2016 = do
   cmdPeriod
   fuzzwuzz
 
-  -- | birdies!
+
   replicateM_ 1 $ synth birdies ()
+  play wind
 
 
 
   -- -- | Piano
-  -- play $ do
-  --   (pianoize $ \x -> sinOsc (freq_ x))
-  --     & \x -> x ~* 0.5
-
-
-
+  play $ do
+    bigness <- kIn (bus_ 902)
+    s <- (pianoize $ \x -> sinOsc (freq_ $ x
+                                   -- & masterShift
+                                   & midiCPS
+                                  ))
+      & \x -> x ~* 0.01
+      >>= spaceify (bigness)
+    out 2 [s, s]
 
 
 
@@ -121,9 +144,13 @@ source2016 = do
                <&> \x -> x ~* 1
 
                          -- -- | down sampling
-                         -- >>= \x -> latch (in_ x, trig_ $ impulse (freq_ $
-                         --                                          kIn (bus_ 905) & linexp (0, 1, 2000, 24000)
-                         --                                         ))
+                         >>= \x -> (do
+                                       choice <- kIn (bus_ 905)
+                                       latched <- latch (in_ x, trig_ $ impulse (freq_ $ choice
+                                                                                 & linexp (0, 1, 4000, 24000)
+                                                                                ))
+                                       latched ~* (1 ~- choice) ~+ x ~* choice
+                                   )
 
                          -- | low pass
                          >>= \x -> lpf (in_ x, freq_ $
@@ -131,9 +158,9 @@ source2016 = do
                                         )
 
                          -- | ducker
-                         -- >>= \x -> compander ( in_ x
-                         --                     , control_ $ lfPulse (freq_ $ masterFreq ~* 1) & linexp (-1, 1, 20, 22050)
-                         --                     )
+                         >>= \x -> compander ( in_ x
+                                             , control_ $ lfPulse (freq_ $ masterFreq ~* 1) & linexp (-1, 1, 20, 22050)
+                                             )
 
                          -- >>= \x -> lpf ( in_ x
                          --               , freq_ $ sinOsc (freq_ $ masterFreq ~* 16)
@@ -168,29 +195,6 @@ source2016 = do
                          --                      )
 
              )
-  -- -- 
-
-  -- | Wind
-
-  -- play $ do
-  --   mod <- masterFreq
-
-  --   freq <- sinOsc (freq_ mod)
-  --   -- freq <- lfSaw (freq_ mod)
-  --   -- freq <- whiteNoise
-  --     & linlin (-1, 1, 0, 1)
-  --     & seelect ( (take 2 $ drop 2 masterScale)
-  --                <&> (~+60)
-  --                 -- <&> (~+12)
-  --                 -- <&> (~+7)
-  --               )
-  --     & \x -> x ~+ sinOsc (freq_ 2) ~* 0.2 -- vibrato
-  --     & masterShift
-  --     & midiCPS
-
-  --   (M.wind freq) ~* (kIn (bus_ 904) ~* 5)
-  --     & \x -> out 2 [x, x]
-
 
 
   return ()
