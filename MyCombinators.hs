@@ -20,7 +20,7 @@ layer :: Int -> SDBody args Signal -> SDBody args Signal
 layer n body = uOp TanH $ mix $ replicate n body
 
 
-spaceify :: Signal -> Signal -> SDBody args Signal
+spaceify :: (SDBody args Signal) -> (SDBody args Signal) -> SDBody args Signal
 spaceify bigness sig = do
   sig
     & (~** (bigness & linlin (0, 1, 0.5, 1)))

@@ -60,7 +60,7 @@ birdies0 = do
 
 -- | One birdy
 -- birdy :: Signal -> SDBody args Signal
-birdy :: [Signal] -> Signal -> SDBody args Signal
+birdy :: [Signal] -> SDBody args Signal -> SDBody args Signal
 birdy tones bigness = do
 
     f0 <- fract 0.01
@@ -77,13 +77,13 @@ birdy tones bigness = do
              & laag 0.01
            , bwr_ $ 0.0001
            )
-      >>= spaceify bigness
+      & spaceify bigness
       & (~*10)
       & tanh'
 
 -- | Polyphonic panning Birdies
 -- | Takes scale, returns birdy
-birdies :: [Signal] -> Signal -> SDBody args [Signal]
+birdies :: [Signal] -> SDBody args Signal -> SDBody args [Signal]
 birdies tones bigness = do
   let haha = birdy tones bigness >>= \x -> pan2 (in_ x, pos_ $  sinOsc (freq_ 0.5, phase_ raand))
 
