@@ -3,7 +3,7 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
 
-module Source2016 where
+module NotSource2016 where
 
 import           Data.Function
 import           MyCombinators
@@ -112,7 +112,7 @@ masterMix_ = do
                <&> \x -> x ~* 1
 
                          -- -- | down sampling
-                         >>= \x -> (do
+                         & \x -> (do
                                        choice <- kIn (bus_ 905)
                                        latched <- latch (in_ x, trig_ $ impulse (freq_ $ choice
                                                                                  & linexp (0, 1, 4000, 24000)
@@ -121,20 +121,20 @@ masterMix_ = do
                                    )
 
                          -- | low pass
-                         >>= \x -> lpf (in_ x, freq_ $
+                         & \x -> lpf (in_ x, freq_ $
                                         kIn (bus_ 906) & linexp (0, 1, 100, 24000)
                                         )
 
 
                          -- | master vol
-                         >>= (~*(kIn (bus_ 908) & linlin (0, 1, 0, 40)))
+                         & (~*(kIn (bus_ 908) & linlin (0, 1, 0, 40)))
 
                          -- | reverb
-                         >>= \x -> freeVerb (in_ x, room_ $
+                         & \x -> freeVerb (in_ x, room_ $
                                              kIn (bus_ 907) & linlin (0, 1, 0, 10)
                                             )
 
-                         >>= tanh'
+                         & tanh'
 
                          -- >>= \x -> (do
                          --               (~*0.2) x ~+ (x

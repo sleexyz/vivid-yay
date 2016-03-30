@@ -3,6 +3,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE Rank2Types #-}
 
 module Util where
 
@@ -102,19 +103,26 @@ infixl 5 <&>
 raand :: SDBody args Signal
 raand = rand (lo_ 0, hi_ 1)
 
-seelect :: (ToSig i args)
-           => [SDBody args Signal]
+seelect :: (ToSig i args, ToSig j args)
+           => [j]
            -> i
            -> SDBody args Signal
-seelect scale x = select (x ~* length scale) scale
+seelect scale x = select (x ~* length scale) $ toSig <$> scale
 
-seelectKR :: (ToSig i args)
-           => [SDBody args Signal]
+seelectKR :: (ToSig i args, ToSig j args)
+           => [j]
            -> i
            -> SDBody args Signal
-seelectKR scale x = select (x ~* length scale) scale ? KR
+seelectKR scale x = (select (x ~* length scale) $ toSig <$> scale) ? KR
 
 deelay2 :: (ToSig i args)
            => i
            -> SDBody args Signal
 deelay2 input = delay2 (in_ input)
+
+
+doN :: ToSig i args =>  Int -> (forall i'. (ToSig i' args) => i' -> SDBody args Signal) -> i -> SDBody args Signal
+doN n func input = fn (toSig input) n
+  where
+    fn x 0 = x
+    fn x m = fn (func x) (m - 1)

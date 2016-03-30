@@ -70,7 +70,7 @@ birdy tones bigness = do
 
     freq <- f2
       & linlin (-1, 1, 0, 1)
-      & seelectKR (return <$> tones)
+      & seelectKR tones
 
     resonz ( in_ $ brownNoise ~* (f1  & linexp (-1, 1, 0.001, 1))
            , freq_ $ freq
